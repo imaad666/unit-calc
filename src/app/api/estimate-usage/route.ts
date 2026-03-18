@@ -68,37 +68,58 @@ async function callGeminiExtract(prompt: string) {
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-    }),
-  });
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    });
 
-  let data: unknown;
-  try {
-    data = await res.json();
-  } catch {
-    return { ok: false as const, error: `Gemini returned non-JSON (${res.status})` };
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      return {
+        ok: false as const,
+        error: `Gemini returned non-JSON (${res.status})`,
+        status: res.status,
+      };
+    }
+
+    const candidates = (data as any)?.candidates;
+    const text =
+      candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
+
+    if (res.status === 429 && attempt < maxAttempts - 1) {
+      // Simple backoff to reduce immediate retry storms.
+      const waitMs = 900 * (attempt + 1);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false as const,
+        error: "Gemini request failed",
+        status: res.status,
+        rawText: String(text),
+      };
+    }
+
+    return { ok: true as const, rawText: String(text), modelData: data };
   }
 
-  const candidates = (data as any)?.candidates;
-  const text =
-    candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
-
-  if (!res.ok) {
-    return { ok: false as const, error: "Gemini request failed", status: res.status, rawText: String(text) };
-  }
-
-  return { ok: true as const, rawText: String(text), modelData: data };
+  return { ok: false as const, error: "Gemini request failed (exhausted retries)" };
 }
 
 function computeMonthlyFromWatts(powerWatts: number, hoursPerDay: number, year: number) {
@@ -254,7 +275,19 @@ export async function POST(req: Request) {
 
     const gemini = await callGeminiExtract(extractPrompt);
     if (!gemini.ok) {
-      return Response.json({ error: gemini.error }, { status: 500 });
+      items.push({
+        name: name ?? displayUrl,
+        url: displayUrl,
+        hoursPerDay,
+        monthlyKwh: null,
+        yearlyKwh: null,
+        evidence: null,
+        warning:
+          gemini.status != null
+            ? `Gemini failed (HTTP ${gemini.status})`
+            : `Gemini failed`,
+      });
+      continue;
     }
 
     const parsedExtract = extractJson<GeminiExtractResponse>(gemini.rawText);

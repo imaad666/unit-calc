@@ -47,6 +47,14 @@ export default function HomePage() {
   const [status, setStatus] = useState<string>("");
   const [bill, setBill] = useState<BillResponse["bill"] | null>(null);
   const billRef = useRef<HTMLDivElement | null>(null);
+
+  const orderCounterRef = useRef(1);
+  const [receiptMeta, setReceiptMeta] = useState<{
+    date: string;
+    time: string;
+    order: string;
+    reg: string;
+  }>({ date: "", time: "", order: "01", reg: "01" });
   const receiptRequestedRef = useRef(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -192,6 +200,23 @@ export default function HomePage() {
         totalCost: Number((totalYearly * demoTariff).toFixed(2)),
       },
     });
+
+    // Fill receipt meta for demo.
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yyyy = String(now.getFullYear());
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const orderNum = String(orderCounterRef.current).padStart(2, "0");
+    orderCounterRef.current += 1;
+    setReceiptMeta({
+      date: `${mm}/${dd}/${yyyy}`,
+      time: `${hours}:${minutes}`,
+      order: orderNum,
+      reg: "01",
+    });
+
     setView("receipt");
     setStatus("Loaded demo bill. You can download it as an image.");
   }
@@ -237,6 +262,21 @@ export default function HomePage() {
       }
 
       setBill(data.bill);
+      // Fill receipt meta for the "terminal receipt" look.
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const yyyy = String(now.getFullYear());
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const orderNum = String(orderCounterRef.current).padStart(2, "0");
+      orderCounterRef.current += 1;
+      setReceiptMeta({
+        date: `${mm}/${dd}/${yyyy}`,
+        time: `${hours}:${minutes}`,
+        order: orderNum,
+        reg: "01",
+      });
       setStatus("Estimated successfully.");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Request failed");
@@ -584,31 +624,95 @@ export default function HomePage() {
                 </button>
               </div>
 
-              <div ref={billRef} style={{ border: "1px solid rgba(0,229,255,0.25)", borderRadius: 16, padding: 16, background: "#fff" }}>
-                <h2 style={{ fontSize: 18, marginTop: 0, marginBottom: 12, textAlign: "center", letterSpacing: "0.06em" }}>
-                  Receipt ({bill.year})
-                </h2>
+              <div
+                ref={billRef}
+                style={{
+                  border: "1px solid rgba(0,229,255,0.25)",
+                  borderRadius: 16,
+                  padding: 16,
+                  background: "#fff",
+                }}
+              >
+                {(() => {
+                  const monthsCount = 12;
+                  const truncate = (s: string, n: number) =>
+                    s.length > n ? s.slice(0, Math.max(0, n - 1)) + "…" : s;
+                  const formatUnits = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "0.00");
 
-                <div style={{ display: "grid", gap: 12 }}>
-                  {bill.items.map((it, idx) => (
-                    <div key={`${it.name}-${idx}`} style={{ border: "1px solid #e6e6e6", borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 10 }}>
-                        {it.name || `Product ${idx + 1}`}
-                      </div>
+                  const itemLines = bill.items
+                    .map((it, idx) => {
+                      const monthly = it.monthlyKwh ?? [];
+                      const sum = monthly.reduce(
+                        (a, b) => a + (Number.isFinite(b) ? b : 0),
+                        0,
+                      );
+                      const avgMonthlyUnits =
+                        monthly.length > 0 ? sum / Math.min(monthsCount, monthly.length) : 0;
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 8 }}>
-                        {bill.months.map((m, i) => (
-                          <div key={m} style={{ minWidth: 70 }}>
-                            <div style={{ fontSize: 11, color: "#667", fontWeight: 700 }}>{m}</div>
-                            <div style={{ fontWeight: 900 }}>
-                              {(it.monthlyKwh?.[i] ?? 0).toFixed(2)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      const name = truncate(it.name || `Product ${idx + 1}`, 28);
+                      const left = `${idx + 1}  ${name}`;
+                      const leftWidth = 42; // aligns the units column
+                      const units = formatUnits(avgMonthlyUnits);
+                      const unitsRight = units.padStart(8, " ");
+
+                      const line1 = left.padEnd(leftWidth, " ") + unitsRight;
+                      const line2 = `     - Usage hours/day: ${String(it.hoursPerDay).padStart(2, "0")}`;
+                      return `${line1}\n${line2}`;
+                    })
+                    .join("\n\n");
+
+                  const unitsSum = bill.items.reduce((acc, it) => {
+                    const monthly = it.monthlyKwh ?? [];
+                    const sum = monthly.reduce(
+                      (a, b) => a + (Number.isFinite(b) ? b : 0),
+                      0,
+                    );
+                    const avgMonthlyUnits =
+                      monthly.length > 0 ? sum / Math.min(monthsCount, monthly.length) : 0;
+                    return acc + avgMonthlyUnits;
+                  }, 0);
+
+                  const dash = "---------------------------------------";
+                  const countLine = `${String(bill.items.length).padStart(15, " ") } products`;
+
+                  const receiptText = [
+                    "Units Calculator",
+                    dash,
+                    `Date: ${receiptMeta.date}             Time: ${receiptMeta.time}`,
+                    `Order: ${receiptMeta.order}                    Reg: ${receiptMeta.reg}`,
+                    dash,
+                    "",
+                    itemLines,
+                    "",
+                    dash,
+                    `SUBTOTAL (Units)                ${formatUnits(unitsSum)}`,
+                    `TAX                                0.00`,
+                    dash,
+                    `TOTAL UNITS                     ${formatUnits(unitsSum)}`,
+                    dash,
+                    countLine,
+                    "",
+                    "      Thank you for your usage!",
+                    "     Please turn off the lights!",
+                  ].join("\n");
+
+                  return (
+                    <pre
+                      style={{
+                        margin: 0,
+                        whiteSpace: "pre-wrap",
+                        fontSize: 14,
+                        lineHeight: 1.35,
+                        color: "#001a24",
+                        fontWeight: 400,
+                        fontFamily:
+                          'Roboto Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      {receiptText}
+                    </pre>
+                  );
+                })()}
               </div>
             </section>
           ) : null}
