@@ -637,7 +637,8 @@ export default function HomePage() {
                   const monthsCount = 12;
                   const truncate = (s: string, n: number) =>
                     s.length > n ? s.slice(0, Math.max(0, n - 1)) + "…" : s;
-                  const formatUnits = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "0.00");
+                  const formatUnits = (v: number | null) =>
+                    v == null ? "N/A" : Number.isFinite(v) ? v.toFixed(2) : "N/A";
 
                   const itemLines = bill.items
                     .map((it, idx) => {
@@ -647,7 +648,7 @@ export default function HomePage() {
                         0,
                       );
                       const avgMonthlyUnits =
-                        monthly.length > 0 ? sum / Math.min(monthsCount, monthly.length) : 0;
+                        monthly.length > 0 ? sum / Math.min(monthsCount, monthly.length) : null;
 
                       const name = truncate(it.name || `Product ${idx + 1}`, 28);
                       const left = `${idx + 1}  ${name}`;
@@ -663,14 +664,16 @@ export default function HomePage() {
 
                   const unitsSum = bill.items.reduce((acc, it) => {
                     const monthly = it.monthlyKwh ?? [];
-                    const sum = monthly.reduce(
-                      (a, b) => a + (Number.isFinite(b) ? b : 0),
-                      0,
-                    );
-                    const avgMonthlyUnits =
-                      monthly.length > 0 ? sum / Math.min(monthsCount, monthly.length) : 0;
+                    if (monthly.length === 0) return acc;
+                    const sum = monthly.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
+                    const avgMonthlyUnits = sum / Math.min(monthsCount, monthly.length);
                     return acc + avgMonthlyUnits;
                   }, 0);
+
+                  const allProductsComputed = bill.items.every(
+                    (it) => Array.isArray(it.monthlyKwh) && it.monthlyKwh.length > 0,
+                  );
+                  const totalUnitsDisplay = allProductsComputed ? formatUnits(unitsSum) : "N/A";
 
                   const dash = "---------------------------------------";
                   const countLine = `${String(bill.items.length).padStart(15, " ") } products`;
@@ -685,10 +688,10 @@ export default function HomePage() {
                     itemLines,
                     "",
                     dash,
-                    `SUBTOTAL (Units)                ${formatUnits(unitsSum)}`,
+                    `SUBTOTAL (Units)                ${totalUnitsDisplay}`,
                     `TAX                                0.00`,
                     dash,
-                    `TOTAL UNITS                     ${formatUnits(unitsSum)}`,
+                    `TOTAL UNITS                     ${totalUnitsDisplay}`,
                     dash,
                     countLine,
                     "",

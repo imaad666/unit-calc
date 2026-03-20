@@ -59,6 +59,77 @@ function extractJson<T>(text: string): T | null {
   }
 }
 
+function extractPowerWattsFromText(text: string): number | null {
+  // Best-effort deterministic extraction. Many Amazon pages include wattage in title/specs.
+  // We only accept values in a reasonable range to reduce false positives.
+  const t = text.replace(/\s+/g, " ");
+  const candidates: Array<{ value: number; score: number }> = [];
+
+  const powerPattern = /(\d+(?:\.\d+)?)\s*(W|watt(?:age)?|watts(?:age)?|kW)\b/gi;
+  const keywordPattern = /(power|power consumption|watts|wattage|rated|consumption)/i;
+
+  let match: RegExpExecArray | null;
+  // eslint-disable-next-line no-cond-assign
+  while ((match = powerPattern.exec(t))) {
+    const raw = match[1];
+    const unitToken = String(match[2]).toLowerCase();
+    let value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+
+    if (unitToken === "kw") {
+      value = value * 1000;
+    }
+
+    // Filter out extreme outliers.
+    if (value <= 1 || value > 20000) continue;
+
+    // Score based on nearby keyword presence.
+    const idx = match.index;
+    const windowStart = Math.max(0, idx - 80);
+    const windowEnd = Math.min(t.length, idx + match[0].length + 80);
+    const window = t.slice(windowStart, windowEnd);
+    const score = keywordPattern.test(window) ? 2 : 1;
+    candidates.push({ value, score });
+  }
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => b.score - a.score || b.value - a.value);
+  // Prefer the highest score; if same score, prefer larger (often wattage is larger than other "W" tokens).
+  return Number(candidates[0].value.toFixed(2));
+}
+
+function extractAnnualKwhFromText(text: string): number | null {
+  // Best-effort deterministic extraction for devices that only show annual energy consumption.
+  // We assume the annual figure corresponds to 24h/day operation for scaling.
+  const t = text.replace(/\s+/g, " ").toLowerCase();
+
+  // Only accept kWh values if we see annual/yearly cues nearby.
+  const kwhPattern = /(\d+(?:\.\d+)?)\s*(kwh)\b/gi;
+  const annualCue = /(annual|yearly|per year|kwh\/year|kwh\s*\/\s*annum|per annum|in a year)/i;
+
+  const candidates: Array<{ value: number; score: number }> = [];
+  let match: RegExpExecArray | null;
+  // eslint-disable-next-line no-cond-assign
+  while ((match = kwhPattern.exec(t))) {
+    const raw = match[1];
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    if (value <= 1 || value > 200000) continue;
+
+    const idx = match.index ?? 0;
+    const windowStart = Math.max(0, idx - 90);
+    const windowEnd = Math.min(t.length, idx + match[0].length + 90);
+    const window = t.slice(windowStart, windowEnd);
+    const score = annualCue.test(window) ? 2 : 1;
+    candidates.push({ value, score });
+  }
+
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.score - a.score || b.value - a.value);
+  return Number(candidates[0].value.toFixed(2));
+}
+
 async function callGeminiExtract(prompt: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -255,6 +326,10 @@ export async function POST(req: Request) {
           ? htmlToEvidenceText(html, targetMaxHtmlChars)
           : "";
 
+    // Deterministic watt extraction fallback (works even if Gemini extraction misses the power field).
+    const deterministicWatts = extractPowerWattsFromText(evidenceText);
+    const deterministicAnnualKwh = extractAnnualKwhFromText(evidenceText);
+
     const extractPrompt = [
       "You are an assistant that extracts appliance electricity usage data from product page text.",
       "Return STRICT JSON only (no markdown, no extra keys).",
@@ -275,25 +350,63 @@ export async function POST(req: Request) {
 
     const gemini = await callGeminiExtract(extractPrompt);
     if (!gemini.ok) {
-      items.push({
-        name: name ?? displayUrl,
-        url: displayUrl,
-        hoursPerDay,
-        monthlyKwh: null,
-        yearlyKwh: null,
-        evidence: null,
-        warning:
-          gemini.status != null
-            ? `Gemini failed (HTTP ${gemini.status})`
-            : `Gemini failed`,
-      });
+      if (typeof deterministicWatts === "number") {
+        const { monthly, yearly } = computeMonthlyFromWatts(deterministicWatts, hoursPerDay, year);
+        items.push({
+          name: name ?? displayUrl,
+          url: displayUrl,
+          hoursPerDay,
+          monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
+          yearlyKwh: Number(yearly.toFixed(2)),
+          evidence: null,
+          warning:
+            gemini.status != null
+              ? `Gemini failed (HTTP ${gemini.status}); units computed from watts found on the page.`
+              : `Gemini failed; units computed from watts found on the page.`,
+        });
+      } else if (typeof deterministicAnnualKwh === "number") {
+        // Assume annual consumption is for 24h/day.
+        const assumedHoursPerDay = 24;
+        const { monthly, yearly } = computeMonthlyFromYearlyKwh(
+          deterministicAnnualKwh,
+          assumedHoursPerDay,
+          hoursPerDay,
+          year,
+        );
+        items.push({
+          name: name ?? displayUrl,
+          url: displayUrl,
+          hoursPerDay,
+          monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
+          yearlyKwh: Number(yearly.toFixed(2)),
+          evidence: null,
+          warning:
+            gemini.status != null
+              ? `Gemini failed (HTTP ${gemini.status}); units computed from annual kWh found on the page (assumed 24h/day).`
+              : `Gemini failed; units computed from annual kWh found on the page (assumed 24h/day).`,
+        });
+      } else {
+        items.push({
+          name: name ?? displayUrl,
+          url: displayUrl,
+          hoursPerDay,
+          monthlyKwh: null,
+          yearlyKwh: null,
+          evidence: null,
+          warning:
+            gemini.status != null
+              ? `Gemini failed (HTTP ${gemini.status})`
+              : `Gemini failed`,
+        });
+      }
       continue;
     }
 
     const parsedExtract = extractJson<GeminiExtractResponse>(gemini.rawText);
     const extract = parsedExtract ?? ({} as GeminiExtractResponse);
 
-    const powerWatts = safeNumber(extract.powerWatts);
+    const powerWattsFromGemini = safeNumber(extract.powerWatts);
+    const powerWatts = typeof powerWattsFromGemini === "number" ? powerWattsFromGemini : deterministicWatts;
     const kwhPerYear = safeNumber(extract.kwhPerYear);
     const assumedHoursPerDay = safeNumber(extract.assumedHoursPerDay);
 
@@ -312,10 +425,16 @@ export async function POST(req: Request) {
       continue;
     }
 
-    if (typeof kwhPerYear === "number" && typeof assumedHoursPerDay === "number" && assumedHoursPerDay > 0) {
+    const effectiveKwhPerYear =
+      typeof kwhPerYear === "number" ? kwhPerYear : deterministicAnnualKwh;
+
+    const effectiveAssumedHoursPerDay =
+      typeof assumedHoursPerDay === "number" && assumedHoursPerDay > 0 ? assumedHoursPerDay : 24;
+
+    if (typeof effectiveKwhPerYear === "number" && typeof effectiveAssumedHoursPerDay === "number" && effectiveAssumedHoursPerDay > 0) {
       const { monthly, yearly } = computeMonthlyFromYearlyKwh(
-        kwhPerYear,
-        assumedHoursPerDay,
+        effectiveKwhPerYear,
+        effectiveAssumedHoursPerDay,
         hoursPerDay,
         year,
       );
