@@ -847,13 +847,31 @@ export default function HomePage() {
 
                       const name = truncate(it.name || `Product ${idx + 1}`, 28);
                       const left = `${idx + 1}  ${name}`;
-                      const leftWidth = 42; // aligns the units column
+                      const leftWidth = 42;
                       const units = formatUnits(avgMonthlyUnits);
                       const unitsRight = units.padStart(8, " ");
 
                       const line1 = left.padEnd(leftWidth, " ") + unitsRight;
-                      const line2 = `     - Usage hours/day: ${String(it.hoursPerDay).padStart(2, "0")}`;
-                      return `${line1}\n${line2}`;
+                      const line2 = `     - Usage: ${it.hoursPerDay}h/day`;
+                      
+                      // Add calculation breakdown
+                      const details = it.extractionDetails;
+                      const watts = details?.finalWatts;
+                      let line3 = "";
+                      if (watts && avgMonthlyUnits) {
+                        const dailyKwh = (watts * it.hoursPerDay) / 1000;
+                        line3 = `     - Calc: ${watts}W × ${it.hoursPerDay}h ÷ 1000 = ${dailyKwh.toFixed(2)} kWh/day`;
+                      }
+                      
+                      // Add extraction method info
+                      let line4 = "";
+                      if (details) {
+                        const methodLabel = details.method === "gemini" ? "AI" : details.method === "regex" ? "Pattern" : "Manual";
+                        const confLabel = details.confidence.charAt(0).toUpperCase();
+                        line4 = `     - Source: ${methodLabel} (${confLabel})`;
+                      }
+
+                      return [line1, line2, line3, line4].filter(Boolean).join("\n");
                     })
                     .join("\n\n");
 
