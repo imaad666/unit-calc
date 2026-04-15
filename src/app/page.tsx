@@ -73,6 +73,19 @@ export default function HomePage() {
   const [draftPageText, setDraftPageText] = useState("");
   const [draftHoursPerDay, setDraftHoursPerDay] = useState<number>(8);
 
+  // Verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState<{
+    name: string;
+    extractedWatts: number | null;
+    confidence: string;
+    method: string;
+    evidence: string[];
+    url: string;
+    hoursPerDay: number;
+  } | null>(null);
+  const [editableWatts, setEditableWatts] = useState<string>("");
+
   function updateAppliance(id: string, patch: Partial<ApplianceDraft>) {
     setAppliances((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   }
@@ -144,7 +157,7 @@ export default function HomePage() {
 
       setDraftUrl("");
       setDraftPageText("");
-      setDraftHoursPerDay(24);
+      setDraftHoursPerDay(8);
       setShowAddForm(false);
       setStatus("Product added.");
     } catch (e) {
@@ -508,42 +521,32 @@ export default function HomePage() {
                   </label>
 
                   <label style={{ display: "block", marginTop: 12 }}>
-                    Run time per day
-                    <div style={{ display: "flex", gap: 10, marginTop: 6, justifyContent: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => setDraftHoursPerDay(12)}
-                        disabled={adding || loading}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 12,
-                          border:
-                            draftHoursPerDay === 12
-                              ? "2px solid rgba(0,229,255,0.65)"
-                              : "1px solid #ddd",
-                          background: draftHoursPerDay === 12 ? "rgba(0,229,255,0.10)" : "#fff",
-                          fontWeight: 800,
-                        }}
-                      >
-                        12
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDraftHoursPerDay(24)}
-                        disabled={adding || loading}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 12,
-                          border:
-                            draftHoursPerDay === 24
-                              ? "2px solid rgba(0,255,180,0.75)"
-                              : "1px solid #ddd",
-                          background: draftHoursPerDay === 24 ? "rgba(0,255,180,0.12)" : "#fff",
-                          fontWeight: 800,
-                        }}
-                      >
-                        24
-                      </button>
+                    Hours used per day
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="24"
+                      step="0.5"
+                      value={draftHoursPerDay}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0.5 && val <= 24) {
+                          setDraftHoursPerDay(val);
+                        }
+                      }}
+                      disabled={adding || loading}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ddd",
+                        fontSize: 16,
+                      }}
+                      placeholder="e.g., 8 hours"
+                    />
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                      Enter hours between 0.5 and 24
                     </div>
                   </label>
 
