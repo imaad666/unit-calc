@@ -103,25 +103,10 @@ export default function HomePage() {
       return;
     }
 
-    const id = `a${appliances.length + 1}-${Date.now()}`;
     const hoursPerDay = draftHoursPerDay;
 
-    setStatus("");
+    setStatus("Extracting power data...");
     setAdding(true);
-    // Close the splash immediately; name/power extraction happens async.
-    setShowAddForm(false);
-
-    // Optimistically add; we'll fill the name from AI if possible.
-    setAppliances((prev) => [
-      ...prev,
-      {
-        id,
-        name: "Looking up name...",
-        url: url || "",
-        pageText,
-        hoursPerDay,
-      },
-    ]);
 
     try {
       const res = await fetch("/api/estimate-usage", {
@@ -142,33 +127,68 @@ export default function HomePage() {
 
       if (!res.ok || !data.bill || !data.bill.items?.[0]) {
         setStatus(data.error ?? `Failed (${res.status})`);
-        updateAppliance(id, {
-          name: url || "Unknown product",
-          pageText,
-        });
+        setAdding(false);
         return;
       }
 
       const item = data.bill.items[0];
-      updateAppliance(id, {
-        name: (item.name ?? url) || "Unknown product",
-        pageText,
-      });
+      const details = item.extractionDetails;
 
-      setDraftUrl("");
-      setDraftPageText("");
-      setDraftHoursPerDay(8);
+      // Show verification dialog
+      setVerificationData({
+        name: item.name,
+        extractedWatts: details?.finalWatts ?? null,
+        confidence: details?.confidence ?? "unknown",
+        method: details?.method ?? "unknown",
+        evidence: details?.evidence ?? item.evidence ?? [],
+        url: url || "Manual entry",
+        hoursPerDay,
+      });
+      setEditableWatts(details?.finalWatts?.toString() ?? "");
       setShowAddForm(false);
-      setStatus("Product added.");
+      setShowVerification(true);
+      setStatus("");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Request failed");
-      updateAppliance(id, {
-        name: url || "Unknown product",
-        pageText,
-      });
     } finally {
       setAdding(false);
     }
+  }
+
+  function confirmAddAppliance() {
+    if (!verificationData) return;
+
+    const watts = parseFloat(editableWatts);
+    if (isNaN(watts) || watts <= 0) {
+      setStatus("Please enter a valid wattage.");
+      return;
+    }
+
+    const id = `a${appliances.length + 1}-${Date.now()}`;
+    setAppliances((prev) => [
+      ...prev,
+      {
+        id,
+        name: verificationData.name,
+        url: verificationData.url,
+        pageText: draftPageText,
+        hoursPerDay: verificationData.hoursPerDay,
+      },
+    ]);
+
+    // Reset states
+    setShowVerification(false);
+    setVerificationData(null);
+    setDraftUrl("");
+    setDraftPageText("");
+    setDraftHoursPerDay(8);
+    setStatus("Product added successfully!");
+  }
+
+  function cancelVerification() {
+    setShowVerification(false);
+    setVerificationData(null);
+    setShowAddForm(true);
   }
 
   function loadDemoBill() {
@@ -584,6 +604,167 @@ export default function HomePage() {
                       }}
                     >
                       {adding ? "Adding..." : "Confirm"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showVerification && verificationData ? (
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 16,
+                  zIndex: 50,
+                }}
+                onClick={() => setShowVerification(false)}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: 600,
+                    background: "#fff",
+                    borderRadius: 16,
+                    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+                    padding: 20,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 style={{ margin: "0 0 16px 0", textAlign: "center", color: "#001a24" }}>
+                    Verify Extracted Data
+                  </h3>
+
+                  <div style={{ marginBottom: 16, padding: 12, background: "#f5f5f5", borderRadius: 8 }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Product:</strong> {verificationData.name}
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Usage:</strong> {verificationData.hoursPerDay} hours/day
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Extraction Method:</strong>{" "}
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background:
+                            verificationData.method === "gemini"
+                              ? "rgba(0,229,255,0.15)"
+                              : verificationData.method === "regex"
+                                ? "rgba(255,200,0,0.15)"
+                                : "rgba(255,100,100,0.15)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {verificationData.method.toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <strong>Confidence:</strong>{" "}
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background:
+                            verificationData.confidence === "high"
+                              ? "rgba(0,255,100,0.15)"
+                              : verificationData.confidence === "medium"
+                                ? "rgba(255,200,0,0.15)"
+                                : "rgba(255,100,100,0.15)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {verificationData.confidence.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label style={{ display: "block", marginBottom: 16 }}>
+                    <strong>Power Consumption (Watts)</strong>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10000"
+                      step="1"
+                      value={editableWatts}
+                      onChange={(e) => setEditableWatts(e.target.value)}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        padding: 12,
+                        borderRadius: 8,
+                        border: "2px solid rgba(0,229,255,0.3)",
+                        fontSize: 18,
+                        fontWeight: 600,
+                      }}
+                      placeholder="Enter wattage"
+                    />
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                      {verificationData.extractedWatts
+                        ? `AI extracted: ${verificationData.extractedWatts}W`
+                        : "No wattage found - please enter manually"}
+                    </div>
+                  </label>
+
+                  {verificationData.evidence.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <strong>Evidence:</strong>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          padding: 10,
+                          background: "#f9f9f9",
+                          borderRadius: 6,
+                          maxHeight: 120,
+                          overflow: "auto",
+                          fontSize: 13,
+                          color: "#555",
+                        }}
+                      >
+                        {verificationData.evidence.map((ev, idx) => (
+                          <div key={idx} style={{ marginBottom: 4 }}>
+                            • {ev}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
+                    <button
+                      type="button"
+                      onClick={cancelVerification}
+                      style={{
+                        padding: "12px 16px",
+                        flex: 1,
+                        borderRadius: 12,
+                        border: "1px solid #ddd",
+                        background: "#fff",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmAddAppliance}
+                      style={{
+                        padding: "12px 16px",
+                        flex: 1,
+                        border: "1px solid rgba(0,229,255,0.4)",
+                        background: "rgba(0,229,255,0.08)",
+                        borderRadius: 12,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Confirm & Add
                     </button>
                   </div>
                 </div>
