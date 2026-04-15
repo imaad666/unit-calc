@@ -14,6 +14,16 @@ export default function HomePage() {
 
   type View = "add" | "receipt";
 
+  type ExtractionDetails = {
+    method: "gemini" | "regex" | "fallback";
+    geminiWatts: number | null;
+    regexWatts: number | null;
+    finalWatts: number | null;
+    confidence: "high" | "medium" | "low";
+    evidence: string[];
+    rawGeminiResponse?: string;
+  };
+
   type BillResponse = {
     bill: {
       currency: string | null;
@@ -28,6 +38,7 @@ export default function HomePage() {
         yearlyKwh: number | null;
         evidence?: string[] | null;
         warning?: string | null;
+        extractionDetails?: ExtractionDetails | null;
       }>;
       totals: {
         monthlyKwh: number[];
@@ -60,7 +71,7 @@ export default function HomePage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [draftUrl, setDraftUrl] = useState("");
   const [draftPageText, setDraftPageText] = useState("");
-  const [draftHoursPerDay, setDraftHoursPerDay] = useState<12 | 24>(24);
+  const [draftHoursPerDay, setDraftHoursPerDay] = useState<number>(8);
 
   function updateAppliance(id: string, patch: Partial<ApplianceDraft>) {
     setAppliances((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
@@ -389,7 +400,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setDraftHoursPerDay(24);
+                    setDraftHoursPerDay(8);
                     setDraftUrl("");
                     setDraftPageText("");
                     setShowAddForm(true);
