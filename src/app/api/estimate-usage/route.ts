@@ -393,11 +393,20 @@ export async function POST(req: Request) {
           hoursPerDay,
           monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
           yearlyKwh: Number(yearly.toFixed(2)),
-          evidence: null,
+          evidence: [`Regex extraction found: ${deterministicWatts}W`],
           warning:
             gemini.status != null
               ? `Gemini failed (HTTP ${gemini.status}); units computed from watts found on the page.`
               : `Gemini failed; units computed from watts found on the page.`,
+          extractionDetails: {
+            method: "regex",
+            geminiWatts: null,
+            regexWatts: deterministicWatts,
+            finalWatts: deterministicWatts,
+            confidence: "medium",
+            evidence: [`Regex pattern matched: ${deterministicWatts}W`],
+            rawGeminiResponse: gemini.error,
+          },
         });
       } else if (typeof deterministicAnnualKwh === "number") {
         // Assume annual consumption is for 24h/day.
@@ -414,11 +423,20 @@ export async function POST(req: Request) {
           hoursPerDay,
           monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
           yearlyKwh: Number(yearly.toFixed(2)),
-          evidence: null,
+          evidence: [`Regex extraction found: ${deterministicAnnualKwh} kWh/year`],
           warning:
             gemini.status != null
               ? `Gemini failed (HTTP ${gemini.status}); units computed from annual kWh found on the page (assumed 24h/day).`
               : `Gemini failed; units computed from annual kWh found on the page (assumed 24h/day).`,
+          extractionDetails: {
+            method: "regex",
+            geminiWatts: null,
+            regexWatts: null,
+            finalWatts: null,
+            confidence: "low",
+            evidence: [`Regex pattern matched: ${deterministicAnnualKwh} kWh/year (assumed 24h/day)`],
+            rawGeminiResponse: gemini.error,
+          },
         });
       } else {
         items.push({
@@ -432,6 +450,15 @@ export async function POST(req: Request) {
             gemini.status != null
               ? `Gemini failed (HTTP ${gemini.status})`
               : `Gemini failed`,
+          extractionDetails: {
+            method: "fallback",
+            geminiWatts: null,
+            regexWatts: deterministicWatts,
+            finalWatts: null,
+            confidence: "low",
+            evidence: ["No power data could be extracted"],
+            rawGeminiResponse: gemini.error,
+          },
         });
       }
       continue;
@@ -446,6 +473,12 @@ export async function POST(req: Request) {
     const assumedHoursPerDay = safeNumber(extract.assumedHoursPerDay);
 
     const itemName = (extract.applianceName ?? name ?? displayUrl).toString();
+    const confidence = extract.confidence ?? "medium";
+
+    // Determine which method was used
+    const extractionMethod: "gemini" | "regex" | "fallback" =
+      typeof powerWattsFromGemini === "number" ? "gemini" :
+      typeof deterministicWatts === "number" ? "regex" : "fallback";
 
     if (typeof powerWatts === "number") {
       const { monthly, yearly } = computeMonthlyFromWatts(powerWatts, hoursPerDay, year);
@@ -456,6 +489,15 @@ export async function POST(req: Request) {
         monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
         yearlyKwh: Number(yearly.toFixed(2)),
         evidence: extract.evidence ?? null,
+        extractionDetails: {
+          method: extractionMethod,
+          geminiWatts: powerWattsFromGemini,
+          regexWatts: deterministicWatts,
+          finalWatts: powerWatts,
+          confidence: confidence,
+          evidence: extract.evidence ?? [],
+          rawGeminiResponse: gemini.rawText,
+        },
       });
       continue;
     }
@@ -480,6 +522,15 @@ export async function POST(req: Request) {
         monthlyKwh: monthly.map((x) => Number(x.toFixed(2))),
         yearlyKwh: Number(yearly.toFixed(2)),
         evidence: extract.evidence ?? null,
+        extractionDetails: {
+          method: extractionMethod,
+          geminiWatts: powerWattsFromGemini,
+          regexWatts: deterministicWatts,
+          finalWatts: null,
+          confidence: confidence,
+          evidence: extract.evidence ?? [],
+          rawGeminiResponse: gemini.rawText,
+        },
       });
       continue;
     }
@@ -492,6 +543,15 @@ export async function POST(req: Request) {
       yearlyKwh: null,
       evidence: extract.evidence ?? null,
       warning: "Could not confidently extract power/energy from the page.",
+      extractionDetails: {
+        method: "fallback",
+        geminiWatts: powerWattsFromGemini,
+        regexWatts: deterministicWatts,
+        finalWatts: null,
+        confidence: "low",
+        evidence: extract.evidence ?? [],
+        rawGeminiResponse: gemini.rawText,
+      },
     });
   }
 
