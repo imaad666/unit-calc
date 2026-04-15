@@ -7,6 +7,17 @@ type GeminiExtractResponse = {
   kwhPerYear?: number | null;
   assumedHoursPerDay?: number | null;
   evidence?: string[];
+  confidence?: "high" | "medium" | "low" | null;
+};
+
+type ExtractionDetails = {
+  method: "gemini" | "regex" | "fallback";
+  geminiWatts: number | null;
+  regexWatts: number | null;
+  finalWatts: number | null;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+  rawGeminiResponse?: string;
 };
 
 const EstimateRequestSchema = z.object({
@@ -266,6 +277,7 @@ export async function POST(req: Request) {
     yearlyKwh: number | null;
     evidence?: string[] | null;
     warning?: string | null;
+    extractionDetails?: ExtractionDetails | null;
   }> = [];
 
   const targetMaxHtmlChars = 30000;
@@ -331,21 +343,44 @@ export async function POST(req: Request) {
     const deterministicAnnualKwh = extractAnnualKwhFromText(evidenceText);
 
     const extractPrompt = [
-      "You are an assistant that extracts appliance electricity usage data from product page text.",
-      "Return STRICT JSON only (no markdown, no extra keys).",
+      "You are an expert assistant that extracts appliance electricity usage data from product specifications.",
+      "Your task is to find the POWER CONSUMPTION in WATTS (W) for this appliance.",
+      "",
+      "Return STRICT JSON only (no markdown, no code blocks, no extra text).",
       "Schema:",
-      "{ applianceName: string|null, powerWatts: number|null, kwhPerYear: number|null, assumedHoursPerDay: number|null, evidence: string[] }",
-      "Rules:",
-      "- If you can identify a power rating in W (like 'Power: 1200W', 'Consumption 200W'), set powerWatts and keep kwhPerYear=null and assumedHoursPerDay=null.",
-      "- Otherwise, if you can find energy usage for a known schedule (like 'Annual consumption: 180 kWh' or 'Monthly consumption' etc.), then set kwhPerYear and assumedHoursPerDay.",
-      "- The assumedHoursPerDay should match the schedule used by the energy figure (e.g., if it says 'used 3 hours per day', use 3).",
-      "- If you are not sure, return null values and include evidence of what you looked at.",
+      '{ "applianceName": string|null, "powerWatts": number|null, "kwhPerYear": number|null, "assumedHoursPerDay": number|null, "evidence": string[], "confidence": "high"|"medium"|"low" }',
       "",
-      `Device URL (for reference only): ${displayUrl}`,
-      `User usage: ${hoursPerDay} hours per day.`,
+      "EXTRACTION RULES:",
+      "1. PRIORITY: Look for power consumption in Watts (W) or Kilowatts (kW)",
+      "   - Common labels: 'Power', 'Wattage', 'Power Consumption', 'Rated Power', 'Input Power'",
+      "   - Examples: '1200W', '1.2kW', 'Power: 60 Watts', 'Consumption: 800W'",
+      "   - If found, set powerWatts (convert kW to W: 1kW = 1000W)",
       "",
-      "Page text:",
+      "2. FALLBACK: If no wattage found, look for annual energy consumption",
+      "   - Common labels: 'Annual Energy Consumption', 'Energy per year', 'kWh/year'",
+      "   - If found, set kwhPerYear and assumedHoursPerDay (usually 24 for always-on devices)",
+      "",
+      "3. VALIDATION:",
+      "   - Typical ranges: Light bulbs (5-100W), Fans (50-200W), TVs (50-400W), ACs (1000-3000W)",
+      "   - Refrigerators (100-800W), Washing machines (500-2000W), Microwaves (800-1500W)",
+      "   - If value seems unreasonable, set confidence to 'low'",
+      "",
+      "4. CONFIDENCE LEVELS:",
+      '   - "high": Clear power rating found with explicit label',
+      '   - "medium": Power value found but label unclear or multiple values present',
+      '   - "low": Uncertain or estimated value',
+      "",
+      "5. EVIDENCE: Include the exact text snippets where you found the power information",
+      "   - Quote the relevant sentences or specifications",
+      "   - Include surrounding context if helpful",
+      "",
+      `Product URL: ${displayUrl}`,
+      `User's intended usage: ${hoursPerDay} hours per day`,
+      "",
+      "PRODUCT SPECIFICATIONS:",
       evidenceText,
+      "",
+      "Return JSON now:",
     ].join("\n");
 
     const gemini = await callGeminiExtract(extractPrompt);
