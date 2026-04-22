@@ -69,6 +69,7 @@ export default function HomePage() {
   const receiptRequestedRef = useRef(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [draftName, setDraftName] = useState("");
   const [draftUrl, setDraftUrl] = useState("");
   const [draftPageText, setDraftPageText] = useState("");
   const [draftHoursPerDay, setDraftHoursPerDay] = useState<number>(8);
@@ -85,6 +86,7 @@ export default function HomePage() {
     hoursPerDay: number;
   } | null>(null);
   const [editableWatts, setEditableWatts] = useState<string>("");
+  const [editableName, setEditableName] = useState<string>("");
 
   function updateAppliance(id: string, patch: Partial<ApplianceDraft>) {
     setAppliances((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
@@ -145,6 +147,8 @@ export default function HomePage() {
         hoursPerDay,
       });
       setEditableWatts(details?.finalWatts?.toString() ?? "");
+      // Use user-provided name if available, otherwise use extracted name
+      setEditableName(draftName.trim() || item.name);
       setShowAddForm(false);
       setShowVerification(true);
       setStatus("");
@@ -164,12 +168,18 @@ export default function HomePage() {
       return;
     }
 
+    const finalName = editableName.trim() || verificationData.name;
+    if (!finalName) {
+      setStatus("Please enter a product name.");
+      return;
+    }
+
     const id = `a${appliances.length + 1}-${Date.now()}`;
     setAppliances((prev) => [
       ...prev,
       {
         id,
-        name: verificationData.name,
+        name: finalName,
         url: verificationData.url,
         pageText: draftPageText,
         hoursPerDay: verificationData.hoursPerDay,
@@ -179,6 +189,7 @@ export default function HomePage() {
     // Reset states
     setShowVerification(false);
     setVerificationData(null);
+    setDraftName("");
     setDraftUrl("");
     setDraftPageText("");
     setDraftHoursPerDay(8);
@@ -466,6 +477,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => {
+                    setDraftName("");
                     setDraftHoursPerDay(8);
                     setDraftUrl("");
                     setDraftPageText("");
@@ -545,13 +557,42 @@ export default function HomePage() {
                   <h3 style={{ margin: "6px 0 12px 0", textAlign: "center" }}>Add product</h3>
 
                   <label style={{ display: "block", marginTop: 10 }}>
+                    Product name (optional)
+                    <input
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="e.g., LED Bulb, Table Fan"
+                      style={{
+                        width: "100%",
+                        padding: 10,
+                        marginTop: 6,
+                        borderRadius: 8,
+                        border: "1px solid #ddd",
+                        fontSize: 16,
+                        boxSizing: "border-box"
+                      }}
+                      disabled={adding || loading}
+                    />
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                      Leave empty to auto-extract from product page
+                    </div>
+                  </label>
+
+                  <label style={{ display: "block", marginTop: 12 }}>
                     Product link
                     <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
                       <input
                         value={draftUrl}
                         onChange={(e) => setDraftUrl(e.target.value)}
                         placeholder="https://..."
-                        style={{ width: "100%", padding: 10 }}
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 8,
+                          border: "1px solid #ddd",
+                          fontSize: 16,
+                          boxSizing: "border-box"
+                        }}
                         disabled={adding || loading}
                       />
                       <button
@@ -595,6 +636,7 @@ export default function HomePage() {
                         borderRadius: 8,
                         border: "1px solid #ddd",
                         fontSize: 16,
+                        boxSizing: "border-box"
                       }}
                       placeholder="e.g., 8 hours"
                     />
@@ -609,7 +651,16 @@ export default function HomePage() {
                       value={draftPageText}
                       onChange={(e) => setDraftPageText(e.target.value)}
                       placeholder="If the link can't be fetched, paste power/energy here."
-                      style={{ width: "100%", marginTop: 6, padding: 10, minHeight: 90 }}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        padding: 10,
+                        minHeight: 90,
+                        borderRadius: 8,
+                        border: "1px solid #ddd",
+                        fontSize: 16,
+                        boxSizing: "border-box"
+                      }}
                       disabled={adding || loading}
                     />
                   </label>
@@ -672,10 +723,32 @@ export default function HomePage() {
                     Verify Extracted Data
                   </h3>
 
-                  <div style={{ marginBottom: 16, padding: 12, background: "#f5f5f5", borderRadius: 8 }}>
-                    <div style={{ marginBottom: 8 }}>
-                      <strong>Product:</strong> {verificationData.name}
+                  <label style={{ display: "block", marginBottom: 16 }}>
+                    <strong>Product Name</strong>
+                    <input
+                      type="text"
+                      value={editableName}
+                      onChange={(e) => setEditableName(e.target.value)}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        padding: 12,
+                        borderRadius: 8,
+                        border: "2px solid rgba(0,229,255,0.3)",
+                        fontSize: 16,
+                        fontWeight: 600,
+                        boxSizing: "border-box"
+                      }}
+                      placeholder="Enter product name"
+                    />
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                      {verificationData.name
+                        ? `AI extracted: ${verificationData.name}`
+                        : "No name found - please enter manually"}
                     </div>
+                  </label>
+
+                  <div style={{ marginBottom: 16, padding: 12, background: "#f5f5f5", borderRadius: 8 }}>
                     <div style={{ marginBottom: 8 }}>
                       <strong>Usage:</strong> {verificationData.hoursPerDay} hours/day
                     </div>
@@ -734,6 +807,7 @@ export default function HomePage() {
                         border: "2px solid rgba(0,229,255,0.3)",
                         fontSize: 18,
                         fontWeight: 600,
+                        boxSizing: "border-box"
                       }}
                       placeholder="Enter wattage"
                     />
