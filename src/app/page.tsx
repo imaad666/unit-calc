@@ -409,25 +409,58 @@ export default function HomePage() {
                 }}
               >
                 {appliances.map((a, idx) => (
-                  <button
+                  <div
                     key={a.id}
-                    type="button"
-                    title={a.name?.trim().length ? a.name : "Adding..."}
-                    disabled={adding || loading}
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      border: "1px solid rgba(0,229,255,0.35)",
-                      background: "rgba(0,229,255,0.06)",
-                      color: "#001a24",
-                      fontWeight: 900,
-                      cursor: "default",
-                      textShadow: "0 0 10px rgba(0,229,255,0.25)",
+                      position: "relative",
+                      display: "inline-block",
                     }}
                   >
-                    {idx + 1}
-                  </button>
+                    <button
+                      type="button"
+                      title={a.name?.trim().length ? a.name : "Adding..."}
+                      disabled={adding || loading}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        border: "1px solid rgba(0,229,255,0.35)",
+                        background: "rgba(0,229,255,0.06)",
+                        color: "#001a24",
+                        fontWeight: 900,
+                        cursor: "default",
+                        textShadow: "0 0 10px rgba(0,229,255,0.25)",
+                      }}
+                    >
+                      {idx + 1}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeAppliance(a.id)}
+                      disabled={adding || loading}
+                      title="Remove device"
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -6,
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        border: "1px solid rgba(255,100,100,0.5)",
+                        background: "rgba(255,100,100,0.15)",
+                        color: "#d32f2f",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: adding || loading ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
 
                 <button
