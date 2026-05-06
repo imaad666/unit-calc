@@ -14,6 +14,52 @@ export default function HomePage() {
 
   type View = "add" | "receipt";
 
+  // Dark mode theme
+  type Theme = {
+    bg: string;
+    text: string;
+    textSecondary: string;
+    border: string;
+    cardBg: string;
+    inputBg: string;
+    inputBorder: string;
+    buttonBg: string;
+    buttonBorder: string;
+    accentGlow: string;
+    gradient: string;
+    titleColor: string;
+  };
+
+  const lightTheme: Theme = {
+    bg: "#ffffff",
+    text: "#001a24",
+    textSecondary: "#334",
+    border: "rgba(0,229,255,0.35)",
+    cardBg: "#fff",
+    inputBg: "#fff",
+    inputBorder: "#ddd",
+    buttonBg: "rgba(0,229,255,0.07)",
+    buttonBorder: "rgba(0,229,255,0.35)",
+    accentGlow: "rgba(0,229,255,0.06)",
+    gradient: "linear-gradient(90deg, #00E5FF, #00FF90)",
+    titleColor: "#001a24",
+  };
+
+  const darkTheme: Theme = {
+    bg: "#0a1929",
+    text: "#e3f2fd",
+    textSecondary: "#b0bec5",
+    border: "rgba(0,229,255,0.5)",
+    cardBg: "#132f4c",
+    inputBg: "#1e3a5f",
+    inputBorder: "#2e5a8a",
+    buttonBg: "rgba(0,229,255,0.15)",
+    buttonBorder: "rgba(0,229,255,0.5)",
+    accentGlow: "rgba(0,229,255,0.12)",
+    gradient: "linear-gradient(90deg, #00E5FF, #00FF90)",
+    titleColor: "#e3f2fd",
+  };
+
   type ExtractionDetails = {
     method: "gemini" | "regex" | "fallback";
     geminiWatts: number | null;
@@ -48,10 +94,28 @@ export default function HomePage() {
     };
   };
 
+  const [darkMode, setDarkMode] = useState<boolean>(false);
   const [view, setView] = useState<View>("add");
   const [appliances, setAppliances] = useState<ApplianceDraft[]>([]);
   const [currency, setCurrency] = useState<string>("INR");
   const [tariffPerKwh, setTariffPerKwh] = useState<string>("");
+
+  const theme = darkMode ? darkTheme : lightTheme;
+
+  // Initialize dark mode from localStorage
+  useEffect(() => {
+    const savedMode = localStorage.getItem("darkMode");
+    if (savedMode !== null) {
+      setDarkMode(savedMode === "true");
+    }
+  }, []);
+
+  // Save dark mode preference
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("darkMode", String(newMode));
+  };
 
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -379,9 +443,37 @@ export default function HomePage() {
         fontFamily: "system-ui, sans-serif",
         display: "flex",
         justifyContent: "center",
+        background: theme.bg,
+        minHeight: "100vh",
+        transition: "background 0.3s ease",
       }}
     >
-      <div style={{ width: "100%", maxWidth: 760 }}>
+      <div style={{ width: "100%", maxWidth: 760, position: "relative" }}>
+        {/* Dark Mode Toggle */}
+        <button
+          onClick={toggleDarkMode}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            border: `1px solid ${theme.border}`,
+            background: theme.buttonBg,
+            color: theme.text,
+            fontSize: 20,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.3s ease",
+          }}
+          title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {darkMode ? "☀️" : "🌙"}
+        </button>
+
         <h1
           style={{
             textAlign: "center",
@@ -393,11 +485,11 @@ export default function HomePage() {
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             fontWeight: 900,
-            background: "linear-gradient(90deg, #00E5FF, #00FF90)",
+            background: theme.gradient,
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
             textShadow: "0 0 12px rgba(0,229,255,0.35)",
-            color: "#001a24",
+            color: theme.titleColor,
           }}
         >
           Units Calculator
