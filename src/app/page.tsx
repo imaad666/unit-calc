@@ -1142,7 +1142,7 @@ export default function HomePage() {
                         whiteSpace: "pre-wrap",
                         fontSize: 14,
                         lineHeight: 1.35,
-                        color: "#001a24",
+                        color: theme.text,
                         fontWeight: 400,
                         fontFamily:
                           'Roboto Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
