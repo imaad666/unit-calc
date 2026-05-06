@@ -496,7 +496,7 @@ export default function HomePage() {
         </h1>
       {view === "add" ? (
         <>
-          <p style={{ marginTop: 0, textAlign: "center", marginBottom: 16, color: "#334" }}>
+          <p style={{ marginTop: 0, textAlign: "center", marginBottom: 16, color: theme.textSecondary }}>
             Step 1: Add products (link + 12/24 hours).
           </p>
 
@@ -527,9 +527,9 @@ export default function HomePage() {
                         width: 40,
                         height: 40,
                         borderRadius: 10,
-                        border: "1px solid rgba(0,229,255,0.35)",
-                        background: "rgba(0,229,255,0.06)",
-                        color: "#001a24",
+                        border: `1px solid ${theme.border}`,
+                        background: theme.accentGlow,
+                        color: theme.text,
                         fontWeight: 900,
                         cursor: "default",
                         textShadow: "0 0 10px rgba(0,229,255,0.25)",
@@ -580,9 +580,9 @@ export default function HomePage() {
                     width: 44,
                     height: 44,
                     borderRadius: 12,
-                    border: "1px solid rgba(0,229,255,0.35)",
-                    background: "rgba(0,255,180,0.07)",
-                    color: "#001a24",
+                    border: `1px solid ${theme.border}`,
+                    background: theme.buttonBg,
+                    color: theme.text,
                     fontWeight: 900,
                     fontSize: 18,
                     cursor: adding || loading ? "not-allowed" : "pointer",
@@ -593,7 +593,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {status ? <p style={{ textAlign: "center", marginTop: 12, color: "#223" }}>{status}</p> : null}
+            {status ? <p style={{ textAlign: "center", marginTop: 12, color: theme.textSecondary }}>{status}</p> : null}
 
             <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
               <button
@@ -611,8 +611,9 @@ export default function HomePage() {
                 style={{
                   padding: "12px 16px",
                   borderRadius: 12,
-                  border: "1px solid rgba(0,229,255,0.35)",
-                  background: "rgba(0,229,255,0.07)",
+                  border: `1px solid ${theme.border}`,
+                  background: theme.buttonBg,
+                  color: theme.text,
                   fontWeight: 800,
                   cursor: adding || loading ? "not-allowed" : "pointer",
                 }}
@@ -639,16 +640,16 @@ export default function HomePage() {
                   style={{
                     width: "100%",
                     maxWidth: 560,
-                    background: "#fff",
+                    background: theme.cardBg,
                     borderRadius: 16,
                     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
                     padding: 16,
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <h3 style={{ margin: "6px 0 12px 0", textAlign: "center" }}>Add product</h3>
+                  <h3 style={{ margin: "6px 0 12px 0", textAlign: "center", color: theme.text }}>Add product</h3>
 
-                  <label style={{ display: "block", marginTop: 10 }}>
+                  <label style={{ display: "block", marginTop: 10, color: theme.text }}>
                     Product name (optional)
                     <input
                       value={draftName}
@@ -659,18 +660,20 @@ export default function HomePage() {
                         padding: 10,
                         marginTop: 6,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${theme.inputBorder}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontSize: 16,
                         boxSizing: "border-box"
                       }}
                       disabled={adding || loading}
                     />
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
                       Leave empty to auto-extract from product page
                     </div>
                   </label>
 
-                  <label style={{ display: "block", marginTop: 12 }}>
+                  <label style={{ display: "block", marginTop: 12, color: theme.text }}>
                     Product link
                     <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
                       <input
@@ -681,7 +684,9 @@ export default function HomePage() {
                           width: "100%",
                           padding: 10,
                           borderRadius: 8,
-                          border: "1px solid #ddd",
+                          border: `1px solid ${theme.inputBorder}`,
+                          background: theme.inputBg,
+                          color: theme.text,
                           fontSize: 16,
                           boxSizing: "border-box"
                         }}
@@ -706,7 +711,7 @@ export default function HomePage() {
                     </div>
                   </label>
 
-                  <label style={{ display: "block", marginTop: 12 }}>
+                  <label style={{ display: "block", marginTop: 12, color: theme.text }}>
                     Hours used per day
                     <input
                       type="number"
@@ -726,18 +731,20 @@ export default function HomePage() {
                         marginTop: 6,
                         padding: 10,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${theme.inputBorder}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontSize: 16,
                         boxSizing: "border-box"
                       }}
                       placeholder="e.g., 8 hours"
                     />
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
                       Enter hours between 0.5 and 24
                     </div>
                   </label>
 
-                  <label style={{ display: "block", marginTop: 12 }}>
+                  <label style={{ display: "block", marginTop: 12, color: theme.text }}>
                     Paste spec text (optional)
                     <textarea
                       value={draftPageText}
@@ -749,7 +756,9 @@ export default function HomePage() {
                         padding: 10,
                         minHeight: 90,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${theme.inputBorder}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontSize: 16,
                         boxSizing: "border-box"
                       }}
@@ -762,7 +771,14 @@ export default function HomePage() {
                       type="button"
                       onClick={() => setShowAddForm(false)}
                       disabled={adding || loading}
-                      style={{ padding: "12px 16px", flex: 1 }}
+                      style={{
+                        padding: "12px 16px",
+                        flex: 1,
+                        background: theme.inputBg,
+                        color: theme.text,
+                        border: `1px solid ${theme.inputBorder}`,
+                        borderRadius: 8,
+                      }}
                     >
                       Cancel
                     </button>
@@ -773,8 +789,9 @@ export default function HomePage() {
                       style={{
                         padding: "12px 16px",
                         flex: 1,
-                        border: "1px solid rgba(0,229,255,0.4)",
-                        background: "rgba(0,229,255,0.08)",
+                        border: `1px solid ${theme.border}`,
+                        background: theme.buttonBg,
+                        color: theme.text,
                         borderRadius: 12,
                         fontWeight: 900,
                       }}
@@ -804,18 +821,18 @@ export default function HomePage() {
                   style={{
                     width: "100%",
                     maxWidth: 600,
-                    background: "#fff",
+                    background: theme.cardBg,
                     borderRadius: 16,
                     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
                     padding: 20,
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <h3 style={{ margin: "0 0 16px 0", textAlign: "center", color: "#001a24" }}>
+                  <h3 style={{ margin: "0 0 16px 0", textAlign: "center", color: theme.text }}>
                     Verify Extracted Data
                   </h3>
 
-                  <label style={{ display: "block", marginBottom: 16 }}>
+                  <label style={{ display: "block", marginBottom: 16, color: theme.text }}>
                     <strong>Product Name</strong>
                     <input
                       type="text"
@@ -826,21 +843,23 @@ export default function HomePage() {
                         marginTop: 6,
                         padding: 12,
                         borderRadius: 8,
-                        border: "2px solid rgba(0,229,255,0.3)",
+                        border: `2px solid ${theme.border}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontSize: 16,
                         fontWeight: 600,
                         boxSizing: "border-box"
                       }}
                       placeholder="Enter product name"
                     />
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
                       {verificationData.name
                         ? `AI extracted: ${verificationData.name}`
                         : "No name found - please enter manually"}
                     </div>
                   </label>
 
-                  <div style={{ marginBottom: 16, padding: 12, background: "#f5f5f5", borderRadius: 8 }}>
+                  <div style={{ marginBottom: 16, padding: 12, background: theme.inputBg, borderRadius: 8, color: theme.text }}>
                     <div style={{ marginBottom: 8 }}>
                       <strong>Usage:</strong> {verificationData.hoursPerDay} hours/day
                     </div>
@@ -882,7 +901,7 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  <label style={{ display: "block", marginBottom: 16 }}>
+                  <label style={{ display: "block", marginBottom: 16, color: theme.text }}>
                     <strong>Power Consumption (Watts)</strong>
                     <input
                       type="number"
@@ -896,14 +915,16 @@ export default function HomePage() {
                         marginTop: 6,
                         padding: 12,
                         borderRadius: 8,
-                        border: "2px solid rgba(0,229,255,0.3)",
+                        border: `2px solid ${theme.border}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontSize: 18,
                         fontWeight: 600,
                         boxSizing: "border-box"
                       }}
                       placeholder="Enter wattage"
                     />
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
                       {verificationData.extractedWatts
                         ? `AI extracted: ${verificationData.extractedWatts}W`
                         : "No wattage found - please enter manually"}
@@ -911,18 +932,18 @@ export default function HomePage() {
                   </label>
 
                   {verificationData.evidence.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 16, color: theme.text }}>
                       <strong>Evidence:</strong>
                       <div
                         style={{
                           marginTop: 6,
                           padding: 10,
-                          background: "#f9f9f9",
+                          background: theme.inputBg,
                           borderRadius: 6,
                           maxHeight: 120,
                           overflow: "auto",
                           fontSize: 13,
-                          color: "#555",
+                          color: theme.textSecondary,
                         }}
                       >
                         {verificationData.evidence.map((ev, idx) => (
@@ -942,8 +963,9 @@ export default function HomePage() {
                         padding: "12px 16px",
                         flex: 1,
                         borderRadius: 12,
-                        border: "1px solid #ddd",
-                        background: "#fff",
+                        border: `1px solid ${theme.inputBorder}`,
+                        background: theme.inputBg,
+                        color: theme.text,
                         fontWeight: 800,
                         cursor: "pointer",
                       }}
@@ -956,8 +978,9 @@ export default function HomePage() {
                       style={{
                         padding: "12px 16px",
                         flex: 1,
-                        border: "1px solid rgba(0,229,255,0.4)",
-                        background: "rgba(0,229,255,0.08)",
+                        border: `1px solid ${theme.border}`,
+                        background: theme.buttonBg,
+                        color: theme.text,
                         borderRadius: 12,
                         fontWeight: 900,
                         cursor: "pointer",
@@ -973,7 +996,7 @@ export default function HomePage() {
         </>
       ) : (
         <>
-          <p style={{ marginTop: 0, textAlign: "center", marginBottom: 16, color: "#334" }}>
+          <p style={{ marginTop: 0, textAlign: "center", marginBottom: 16, color: theme.textSecondary }}>
             Step 2: Generate receipt (Units only)
           </p>
 
@@ -989,8 +1012,9 @@ export default function HomePage() {
               style={{
                 padding: "12px 16px",
                 borderRadius: 12,
-                border: "1px solid #ddd",
-                background: "#fff",
+                border: `1px solid ${theme.inputBorder}`,
+                background: theme.inputBg,
+                color: theme.text,
                 fontWeight: 800,
               }}
             >
@@ -998,7 +1022,7 @@ export default function HomePage() {
             </button>
 
             {loading ? (
-              <div style={{ marginLeft: 6, color: "#223", fontWeight: 900, alignSelf: "center" }}>
+              <div style={{ marginLeft: 6, color: theme.text, fontWeight: 900, alignSelf: "center" }}>
                 Generating receipt...
               </div>
             ) : null}
