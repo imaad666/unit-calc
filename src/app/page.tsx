@@ -1045,10 +1045,10 @@ export default function HomePage() {
               <div
                 ref={billRef}
                 style={{
-                  border: "1px solid rgba(0,229,255,0.25)",
+                  border: `1px solid ${theme.border}`,
                   borderRadius: 16,
                   padding: 16,
-                  background: "#fff",
+                  background: theme.cardBg,
                 }}
               >
                 {(() => {
